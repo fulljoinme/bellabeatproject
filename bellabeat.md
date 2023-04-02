@@ -114,22 +114,6 @@ This analysis begin on: 2023-03-28
 library(tidyverse) # A must have 
 ```
 
-    ## Warning: package 'tidyverse' was built under R version 4.2.3
-
-    ## Warning: package 'ggplot2' was built under R version 4.2.3
-
-    ## Warning: package 'tibble' was built under R version 4.2.3
-
-    ## Warning: package 'tidyr' was built under R version 4.2.3
-
-    ## Warning: package 'readr' was built under R version 4.2.3
-
-    ## Warning: package 'dplyr' was built under R version 4.2.3
-
-    ## Warning: package 'forcats' was built under R version 4.2.3
-
-    ## Warning: package 'lubridate' was built under R version 4.2.3
-
     ## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
     ## ✔ dplyr     1.1.1     ✔ readr     2.1.4
     ## ✔ forcats   1.0.0     ✔ stringr   1.5.0
@@ -139,22 +123,12 @@ library(tidyverse) # A must have
     ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
     ## ✖ dplyr::filter() masks stats::filter()
     ## ✖ dplyr::lag()    masks stats::lag()
-    ## ℹ Use the ]8;;http://conflicted.r-lib.org/conflicted package]8;; to force all conflicts to become errors
+    ## ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
 
 ``` r
-#library(dplyr) # for data manipulation such as filter(), group_by() 
-#library(ggplot2) # for visualization 
-#library(lubridate) # for date-time formate
-library(ggpubr) # for more complex visualization e.g.stat_cor()
-```
-
-    ## Warning: package 'ggpubr' was built under R version 4.2.3
-
-``` r
+library(ggpubr) # stat_cor()
 library(gridExtra) # for arranging multuple plot on a single page 
 ```
-
-    ## Warning: package 'gridExtra' was built under R version 4.2.3
 
     ## 
     ## Attaching package: 'gridExtra'
