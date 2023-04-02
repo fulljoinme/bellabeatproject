@@ -39,10 +39,7 @@ This analysis begin on: 2023-03-28
 
 ```{r installing required packages}
 library(tidyverse) # A must have 
-#library(dplyr) # for data manipulation such as filter(), group_by() 
-#library(ggplot2) # for visualization 
-#library(lubridate) # for date-time formate
-library(ggpubr) # for more complex visualization e.g.stat_cor()
+library(ggpubr) # stat_cor()
 library(gridExtra) # for arranging multuple plot on a single page 
 ```
 
