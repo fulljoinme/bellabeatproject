@@ -1,0 +1,482 @@
+---
+title: "Bellabeat Market Analysis"
+author: "Yi Huang"
+date: "2023-04-01"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+---
+
+## 1. ABOUT BELLABEAT 
+
+Bellabeat is a high-tech manufacturer of health focused products for women. Bellabeat products include Bellabeat app, Leaf, Time and Spring. Each products has its uniqueness in helping a woman to achienve her health goal. 
+
+## 2. ASK 
+
+### 2.1. The Business Task 
+The project aims to analyze consumer behavior and usage patterns of the Leaf tracker, connecting to the Bellabeat app to track activity, sleep, and stress. Non-Bellabeat smart devices' datasets will be analyzed to provide broader insights. Data analytics techniques will be used to identify trends and patterns in consumer behavior, guiding Bellabeat's product development and marketing strategies. Ultimately, this project will help Bellabeat improve its products to meet customers' needs and preferences in a competitive market.
+
+### 2.2 Stakeholders 
+* **Urška Sršen**: Bellabeat’s cofounder and Chief Creative Officer 
+* **Sando Mur**: Mathematician and Bellabeat’s cofounder; key member of the Bellabeat executive team 
+* **Bellabeat marketing analytics team**: A team of data analysts responsible for collecting, analyzing, and
+reporting data that helps guide Bellabeat’s marketing strategy. I am the **junior analyst** on this team. 
+
+## 3. PREPARE
+
+### 3.1. The dataset
+Data source for this project was from:
+https://www.kaggle.com/arashnic/fitbit. This dataset was created from a survey via Amazon Mechanical Turk over 31 days (4/12/2016-5/12/2016), with 33 Fitbit users submitting data on physical activity, heart rate, and sleep monitoring. The data varied based on the type of Fitbit tracker used and individual tracking behaviors. The data is licensed under CC0: Public Domain, allowing for unrestricted use, modification, and distribution without permission, even for commercial purposes.
+
+This analysis begin on: 2023-03-28 
+
+### 3.2. Install packages and library
+
+```{r installing required packages}
+library(tidyverse) # A must have 
+#library(dplyr) # for data manipulation such as filter(), group_by() 
+#library(ggplot2) # for visualization 
+#library(lubridate) # for date-time formate
+library(ggpubr) # for more complex visualization e.g.ggheatmap() 
+library(gridExtra) # for arranging multuple plot on a single page 
+```
+
+### 3.3. Load CSV files and create name for each dataframe
+
+```{r loading into dataframe}
+daily_activity <- read.csv("dailyActivity_merged.csv")
+sleep_day <- read.csv("sleepDay_merged.csv")
+hourly_calories <- read.csv("hourlyCalories_merged.csv")
+hourly_intensities <- read.csv("hourlyIntensities_merged.csv")
+hourly_steps <- read.csv("hourlySteps_merged.csv")
+heartrate_seconds <- read.csv("heartrate_seconds_merged.csv")
+weight_log <- read.csv("weightLogInfo_merged.csv")
+```
+
+
+### 3.4. Explore the Datasets
+
+```{r checking loaded files}
+# use head() and str() to make sure datasets are loaded correctly. 
+head(daily_activity)
+head(sleep_day)
+head(hourly_calories)
+head(hourly_intensities)
+head(hourly_steps)
+head(heartrate_seconds)
+head(weight_log)
+```
+
+Note that all data files have date-time in 'chr' datatype, which need to be converted to datetime datatype for further analysis. This conversion will be performed in step 4.3. Handling date & time datatype issue.
+
+```{r finding unique users}
+# Number of unique participants in each dataframes
+n_distinct(daily_activity$Id)
+n_distinct(sleep_day$Id)
+n_distinct(hourly_calories$Id)
+n_distinct(hourly_intensities$Id)
+n_distinct(hourly_steps$Id)
+n_distinct(heartrate_seconds$Id)
+n_distinct(weight_log$Id)
+```
+
+Note that the datasets sleeps_day(24 participants), heartrate_seconds (14 participants) and weight_log (8 participants) have a low participant number. **Analysis conducted using these datasets should be used with caution**. 
+
+The dataset heartrate_seconds has a misleading file name because the data set shows heartrate per minute instead of per second. I will rename this dataset in step 4.4 - Renaming Datafile. While heartrate per minute itself is not a very useful piece of information, it should not be overlooked due to its potential value.
+
+Further discussion on the weight_log and heart_rate data will be included in the final section on recommendation and conclusion. Overall total sample number is low. Any analysis resulted from these data should be use with caution. 
+
+## 4. PROCESS
+
+### 4.1. Handling Missing value
+
+```{r checking missing values}
+# Check for number of missing value in each dataset 
+sum(is.na(daily_activity))
+sum(is.na(sleep_day))
+sum(is.na(hourly_calories))
+sum(is.na(hourly_intensities))
+sum(is.na(hourly_steps))
+```
+
+**There is no missing values in all 5 datasets above**
+
+### 4.2. Handling Duplicates
+
+```{r checking duplicates}
+# Check for number of duplicates in each dataset. 
+sum(duplicated(daily_activity))
+sum(duplicated(sleep_day))
+sum(duplicated(hourly_calories))
+sum(duplicated(hourly_intensities))
+sum(duplicated(hourly_steps))
+```
+
+Note that **the sleep_day dataset contains three rows of duplicated data**. The next step is to remove the duplicated rows from sleep_day and save them into a new dataframe named sleep_day2.
+
+```{r removing duplicates}
+# remove duplicates and save into new dataframe sleep_day2. 
+sleep_day2 <- sleep_day[!duplicated(sleep_day),] #!duplicated(sleep_day)  -- include only non-duplicated rows 
+nrow(sleep_day2)
+sum(duplicated(sleep_day2)) # check if there is any duplicates. 
+```
+
+Duplicates in sleep_day were removed and saved as sleep_day2. Total row in sleep_day was 413, came down to 410 rows in sleep_day2.
+
+### 4.3. Handling date & time datatype
+
+```{r datatype conversion}
+# Coverting to date or datetime datatype.  
+# To make sure the date in the correct date format for daily_activity and sleep_day
+daily_activity <- daily_activity %>% 
+    rename(ActivityDate = ActivityDate) %>% 
+    mutate(ActivityDate = as_date(ActivityDate, format = "%m/%d/%Y")) 
+head(daily_activity)
+
+# For datafile sleep_day, keep the date but ignore the time. 
+sleep_day <- sleep_day %>% 
+    rename(SleepDate= SleepDay) %>% 
+    mutate(SleepDate= as_date(SleepDate, format= "%m/%d/%Y %I:%M:%S %p"))
+head(sleep_day)
+
+# To make sure the date&time in the correct format for hourly_steps, hourly_intensities and hourly_calories.
+
+hourly_calories <- hourly_calories %>% 
+    rename(CaloriesDateTime = ActivityHour) %>% 
+    mutate(CaloriesDateTime= as.POSIXct(CaloriesDateTime, format= "%m/%d/%Y %I:%M:%S %p"), tz=Sys.timezone())
+head(hourly_calories)
+
+hourly_intensities <- hourly_intensities %>% 
+    rename(IntensitiesDateTime = ActivityHour) %>% 
+    mutate(IntensitiesDateTime= as.POSIXct(IntensitiesDateTime, format= "%m/%d/%Y %I:%M:%S %p"), tz=Sys.timezone())
+head(hourly_intensities)
+
+hourly_steps <- hourly_steps %>% 
+    rename(StepsDateTime = ActivityHour) %>% 
+    mutate(StepsDateTime= as.POSIXct(StepsDateTime, format= "%m/%d/%Y %I:%M:%S %p"), tz=Sys.timezone())
+head(hourly_steps) 
+
+```
+
+### 4.4. Renaming datafile
+
+## 5. ANALYZE AND VISUALIZE
+
+### 5.1. Statistic Summary of overall daily_activity and sleep_day
+
+```{r daily summary of activities and sleep}
+# daily_activity
+daily_activity %>%  
+  select(TotalSteps,
+         TotalDistance,
+         VeryActiveMinutes,
+         FairlyActiveMinutes,
+         LightlyActiveMinutes,
+         SedentaryMinutes,
+         Calories) %>%
+  summary()
+cat("\n") # to print an empty row
+
+# sleep_day
+sleep_day2 %>%  
+  select(TotalSleepRecords,
+  TotalMinutesAsleep,
+  TotalTimeInBed) %>%
+  summary()
+```
+
+The daily_activity dataset shows **the average steps per day was 7638, which is less than the recommended 10,000 steps per day**. A study in JAMA Neurology found that walking about 10,000 steps a day was linked to less cardiovascular disease (heart disease, stroke and heart failure), 13 types of cancer, and dementia. 
+
+The sleep_day dataset show the average total time in bed (459 min = 7.7 hours) and aveagre total sleep time (419.2 min= approx 7 hours). There isn't sign of insomnia in this population. **This population allocate enough time to bed and they have average total sleep time of 7 hrs indicating adequate sleep**. However this dataset does not include information in sleep quality. Sleep quality is as important as the sleep quantity (https://www.mayoclinic.org/healthy-lifestyle/adult-health/expert-answers/how-many-hours-of-sleep-are-enough/faq-20057898). 
+
+# Visualize the data distrubution of the daily activities.
+
+```{r daily activities distribution}
+# Visualize the data distrubution of the daily activities.
+
+plot1 <- ggplot(data = daily_activity, aes(x=VeryActiveMinutes)) + geom_freqpoly(bins=30)+labs(title="Distribution of Very Activy Time", x="Very Active time in Minutes", y = "Total count")
+
+plot2 <- ggplot(data = daily_activity, aes(x=FairlyActiveMinutes)) + geom_freqpoly(bins=30)+labs(title="Distribution of Fairly Activy Time", x="Fairly Active time in Minutes", y = "Total count")
+
+plot4 <- ggplot(data = daily_activity, aes(x=SedentaryMinutes)) + geom_freqpoly(bins=30)+labs(title="Distribution of Sedentary Time", x="Sedentary time in Minutes", y = "Total count")
+
+plot3 <- ggplot(data = daily_activity, aes(x=LightlyActiveMinutes)) + geom_freqpoly(bins=30)+labs(title="Distribution of Lightly Active Time", x="Lightly Active time in Minutes", y = "Total count")
+
+# Set the size of the plotting device
+options(repr.plot.width = 12, repr.plot.height = 10)
+
+# Create the plot grid
+grid.arrange(plot1, plot2, plot3, plot4, ncol=2)
+```
+
+Both Very Acitive and Fairly active distribution showed a significant scewed of the distribution indicate **few people are being very active or fairly active, most are lightly active or sendetary**. This confirmed with the distribution of Sendentary time. On everage most people spent 16.5 hours being sedentary. 
+
+```{r daily activities weekday plot}
+# Add new column -- Weekday, and then calculate the mean and sd. 
+daily_activity_stat <- daily_activity %>% 
+    mutate(weekday = weekdays(ActivityDate)%>%
+           factor(levels =c("Monday", "Tuesday","Wednesday", "Thursday", "Friday","Saturday", "Sunday")))%>%
+    group_by(weekday)%>% 
+    summarize(avg_SedentaryMinutes = mean(SedentaryMinutes), 
+                sd_SedentaryMinutes = sd(SedentaryMinutes),
+                avg_VeryActiveMinutes = mean(VeryActiveMinutes),
+                sd_VeryActiveMinutes = sd(VeryActiveMinutes),
+                avg_FairlyActiveMinutes = mean(FairlyActiveMinutes),
+                sd_FairlyActiveMinutes = sd(FairlyActiveMinutes),
+                avg_LightlyActiveMinutes = mean(LightlyActiveMinutes),
+                sd_LightlyActiveMinutes = sd(LightlyActiveMinutes),
+                avg_Calories = mean(Calories),
+                sd_Calories = sd(Calories))
+
+# head(daily_activity_stat) -- remove comment# to see the table for the below figure     
+
+plot5 <- ggplot(data=daily_activity_stat, aes(x=weekday, y=avg_SedentaryMinutes)) + geom_col(fill="blue")+ geom_errorbar(aes(ymin=avg_SedentaryMinutes-sd_SedentaryMinutes, ymax=avg_SedentaryMinutes+sd_SedentaryMinutes),width=0.4, position=position_dodge(width=0.9))
+plot6 <- ggplot(data=daily_activity_stat, aes(x=weekday, y=avg_VeryActiveMinutes)) + geom_col(fill="red") + geom_errorbar(aes(ymin=avg_VeryActiveMinutes-sd_VeryActiveMinutes, ymax=avg_VeryActiveMinutes+sd_VeryActiveMinutes),width=0.4, position=position_dodge(width=0.9))
+plot7 <- ggplot(data=daily_activity_stat, aes(x=weekday, y=avg_FairlyActiveMinutes)) + geom_col(fill="orange") + geom_errorbar(aes(ymin=avg_FairlyActiveMinutes-sd_FairlyActiveMinutes, ymax=avg_FairlyActiveMinutes+sd_FairlyActiveMinutes),width=0.4, position=position_dodge(width=0.9))
+plot8 <- ggplot(data=daily_activity_stat, aes(x=weekday, y=avg_LightlyActiveMinutes)) + geom_col(fill="yellow") + geom_errorbar(aes(ymin=avg_LightlyActiveMinutes-sd_LightlyActiveMinutes, ymax=avg_LightlyActiveMinutes+sd_LightlyActiveMinutes),width=0.4, position=position_dodge(width=0.9))
+
+# Set the size of the plotting device
+options(repr.plot.width = 12, repr.plot.height = 12)
+
+# Create the plot grid
+grid.arrange(plot5, plot6, plot7, plot8, ncol=2)
+```
+
+Note that **physical activities remain consistent across all days of the week**. Error bars overlapping indicate no statistical difference in mean values of sedentary time, VeryActive time, FarilyActive time, and Lightly_active time among the weekdays. The large error bars indicate braod data distribution consist of data points much higher or lower than the mean values. 
+
+### 5.3. Is there any difference in calories burned in different days in a week?
+
+```{r weekday colories}
+ggplot(data=daily_activity_stat, aes(x=weekday, y=avg_Calories)) + 
+    geom_col(fill="brown") + 
+    geom_errorbar(aes(ymin=avg_LightlyActiveMinutes-sd_LightlyActiveMinutes, ymax=avg_Calories+sd_Calories),width=0.2, position=position_dodge(width=0.7))
+```
+
+**There is no difference in calories burn across all days in a week.**
+
+### 5.4. Is there any difference in sleep in different days in a week?
+
+# Add new column -- Weekday, and then calculate the mean and sd.
+
+```{r weekday sleep time}
+# Add new column -- Weekday, and then calculate the mean and sd.
+
+sleep_day2_stat <- sleep_day %>% 
+  mutate(weekday = weekdays(SleepDate) %>% 
+         factor(levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) %>% 
+  group_by(weekday) %>% 
+  summarize(avg_TotalMinutesAsleep = mean(TotalMinutesAsleep),
+           sd_TotalMinutesAsleep= sd(TotalMinutesAsleep))
+
+head(sleep_day2_stat)      
+
+ggplot(data=sleep_day2_stat, aes(x=weekday, y=avg_TotalMinutesAsleep)) + 
+    geom_col(fill="pink")+ 
+    geom_errorbar(aes(ymin=avg_TotalMinutesAsleep-sd_TotalMinutesAsleep, ymax=avg_TotalMinutesAsleep+ sd_TotalMinutesAsleep),width=0.4, position=position_dodge(width=0.9))+
+    labs(title = "Calories by Hour of the Day", x= "weekday", y ="Time")
+```
+
+Note that **total sleep time remain consistent across all days of the week**. Overlapping of all errorbars indicate no statistical different in total sleep time among days in a week.
+
+### 5.5 Hourly Steps, Intensities and Calories
+
+```{r separate the StepsDateTime}
+# Separate the StepsDateTime in hourly_steps, hourly_intensities and hourly calories datasets into date and time
+hourly_steps <- hourly_steps %>% 
+    separate(StepsDateTime, into=c("date", "time"), sep = " ") %>% 
+    mutate(date=ymd(date))
+head (hourly_steps)
+
+
+hourly_calories <- hourly_calories %>% 
+    separate(CaloriesDateTime, into=c("date", "time"), sep = " ") %>% 
+    mutate(date=ymd(date))
+head (hourly_calories)
+
+
+hourly_intensities <- hourly_intensities %>% 
+    separate(IntensitiesDateTime, into=c("date", "time"), sep = " ") %>% 
+    mutate(date=ymd(date))
+head (hourly_intensities)
+```
+
+```{r hourly steps}
+# Visualization of Steps, calories burned and activities intensities by hour in a day. (plot 9, 10, 11) 
+hourly_steps_avg <- hourly_steps %>% 
+    group_by(time) %>% 
+    summarize (average_steps = mean(StepTotal))
+head(hourly_steps_avg)
+
+plot9 <- ggplot(data = hourly_steps_avg)+ 
+geom_col (mapping=aes(x=time, y=average_steps, fill = average_steps))+
+labs(title = "Steps by Hour of the Day", x= "Total Steps", y ="Time")+
+scale_fill_gradient(low= "yellow", high="red")+
+theme(axis.text.x= element_text(angle=45))
+
+```
+
+```{r hourly intensities}
+hourly_intensities_avg <- hourly_intensities %>% 
+    group_by(time) %>% 
+    summarize (average_intensity= mean(TotalIntensity))
+head(hourly_intensities_avg)
+
+plot10 <- ggplot(data = hourly_intensities_avg)+ 
+geom_col (mapping=aes(x=time, y=average_intensity, fill = average_intensity))+
+labs(title = "Intensity by Hour of the Day", x= "Total Intensity", y ="Time")+
+scale_fill_gradient(low= "yellow", high="brown")+
+theme(axis.text.x= element_text(angle=45))
+```
+
+```{r hourly calories}
+hourly_calory_avg <- hourly_calories %>% 
+    group_by(time) %>% 
+    summarize (average_calory= mean(Calories))
+head(hourly_calory_avg)
+
+plot11 <- ggplot(data = hourly_calory_avg)+ 
+geom_col (mapping=aes(x=time, y=average_calory, fill =average_calory))+
+labs(title = "Calories by Hour of the Day", x= "Total Calories", y ="Time")+
+scale_fill_gradient(low= "yellow", high="blue")+
+theme(axis.text.x= element_text(angle=45))
+```
+
+```{r resizing plots}
+# Set the size of the plotting device
+options(repr.plot.width = 12, repr.plot.height = 12)
+
+# Create the plot grid
+grid.arrange(plot9, plot10, plot11, ncol=1)
+```
+
+**People tend to take more steps during lunch hours (12-2pm) and after work hours (5-8pm)**, and this aligns with the overall activity intensity level and calorie burn throughout the day.
+
+### 5.6.Relationshiop between total steps taken and being sedentary in a day. 
+
+```{r relationship between steps and being sedentary}
+ggplot(data=daily_activity, aes(x=TotalSteps, y=SedentaryMinutes)) + 
+    geom_point()+
+    geom_smooth(color="blue",method = 'loess',formula = y ~ x)+
+    stat_cor(method="pearson", label.x =20000, label.y=250)+
+    labs(title='Do sedentary people tend to walk less?', x = 'Total Steps', y='Total Sedentary Time (minutes)')+
+    theme_minimal()
+```
+
+The above figure shows majority of individuals in the dataset have a sedentary lifestyle (less than 10,000 steps).
+ 
+There does not appear to be a strong correlation between sedentary time and total steps (R=0.33). **This suggests that individuals who are more active do not necessarily focus solely on increasing their step count**, but rather may engage in higher intensity activities instead.
+
+### 5.7. Relationship between minutes asleep and time in bed
+
+```{r asleep vs in bed}
+ggplot(data=sleep_day, aes(x=TotalMinutesAsleep, y=TotalTimeInBed)) +
+    geom_point()+
+    geom_smooth(method = 'loess', formula = y ~ x, color ='red')+  
+    stat_cor(method = "pearson", label.x=300, label.y = 100)+
+    labs(title="Does spending more time in bed result in more sleep?", x='Total sleep time (minute)', y='Total time spent in Bed (minute)')+
+    theme_minimal()
+```
+
+The correlation between TotalTimeInBed and TotalMinuteAsleep is strong, with R=0.93. This suggests that there is a significant positive relationship between the two variables, meaning **people who spend more time in bed generally get more sleep.**
+
+Let's explore the data points that is NOT on the linear trend. I am interested to know how many unique participants contributing to these data points. I'll add a new colum name TotalTimeNotSleep into the sleep_day2 dataframe, and then plot a visual.
+
+### Time in bed but Not Asleep
+
+```{r}
+sleep_day2 <- sleep_day2%>% 
+    mutate(TotalTimeNotSleep = TotalTimeInBed - TotalMinutesAsleep)
+```
+
+```{r}
+ggplot(data = sleep_day2, aes(x=TotalTimeNotSleep)) + 
+    geom_freqpoly(bins=30)+
+    labs(title="How long do people usually stay awake at night?", x='Total awake time (minute)', y='Count')+
+    theme_minimal()
+```
+
+```{r}
+ggplot(data = sleep_day2, aes("", TotalTimeNotSleep)) +
+  geom_boxplot() +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
+  stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "green") +
+  stat_summary(fun.data = "median_hilow", geom = "errorbar", width = 0.2, color = "blue")
+```
+
+On average awake time in bed is less than 50 min. Next, let's investigate how many distinct participant are has more than 200 mins of TotalTimeNotSleep.
+
+```{r}
+not_sleep_well <- sleep_day2 %>% filter(TotalTimeNotSleep >= 200)
+n_distinct(not_sleep_well$Id)
+```
+
+Note 1: There are **2 (out of 24) individuals has significant longer TotalTimeNotSleep when in bed.** 
+
+### Merging datasets daily_activity and sleep_day2 
+Note merge() join reults in 24 unique participants, full_join() has 33. This suggests that there are some rows in one or both of the data frames that do not have a matching value in the other data frame. full_join() include all rows from both data frames and fill in missing values with NA. 
+
+```{r}
+# merging data
+combined_data <- merge(sleep_day2, daily_activity, by="Id")
+
+# Count number of unique participants
+n_distinct(combined_data$Id)
+
+glimpse(combined_data)
+```
+
+```{r}
+ggplot(data=combined_data, aes(y=TotalSteps, x=TotalTimeNotSleep)) + geom_point()
+```
+
+Graph indicate most poeple sleep well regardless the total steps taken per day. However, those have higher totalTimeNotSleep are also individual with low total steps. In another words, **individual who are active (high total steps) during the day tend to sleep better at night with least sleepless time when in bed**. However there is no correlation showed in this graph indicating total sleep time not sleep is affected by more complex factors other than just total distance recorded in a day. 
+
+```{r}
+ggplot(data=combined_data, aes(x=TotalSteps, y=TotalMinutesAsleep)) + geom_point()
+```
+
+Graph above show **no relationship between total sleep time and total steps**. The same observations with total sleep time and any activity intensities. 
+
+## 6. ACT: Recommendation and Conclusion <a id=ACT></a>
+
+#### Physical activities and sleep behavior:
+Physical activities is the most popular data user would engage to. Perhpas it is the main reason many would want to have a wearable gardget for. Some interesting finding derived from this analysis: 
+
+- The average steps per day was 7638, which is less than the recommended 10,000 steps per day.
+- This population allocate an average of 7.7hours to bed, and have average 7hours of sleep, suggesting sufficient sleep. 
+- Few people are being very active or fairly active, most are lightly active or sendetary.
+- There is no significant difference in physical activities, calories burn, and total sleep across all days of the week. 
+- People tend to take more steps during lunch hours (12-2pm) and after work hours (5-8pm). The activities intensity and calories burn are higher in these time periods too. 
+- Individuals who are more active do not necessarily focus solely on increasing their step counts, but engage in higher intensity activities instead.
+- People who spend more time in bed generally get more sleep.
+- Individual who are active (high total steps) during the day tend to sleep better at night with least sleepless time when in bed. However, total steps is not the sole factor affecting total sleepless time. instead it could be a combination of total activities, stress level, health condiction, etc. Anyway,user should be encourage to get involve in any activities that interest them to stay active in the day for better sleep at night.
+
+Recommendation based on the finding include: 
+
+- create an app that send notification to users about their total physical activity in a day and if they have achieve their goal. Send message to encourage activity if they have not achieve their goal and congratulate and reward(star system) those who succeeded. The app should create weekly and monthly report on their achievement. 
+
+- Create an app to help user managea and monitor sleep time and quality. It would be interesting if Bellabeat could include an app to measure on sleep quality such as sleep latency, wakefulness, sleep efficiency, sleep walking (https://www.thensf.org/what-is-sleep-quality/), and provide a report on the sleep quality. Send notification to users who remain active after their normal sleep hour. Provide a selection of music that encourage sleep. 
+
+#### Weight log: 
+The usage of weight_log may be less engaging due to the manual input requirement of weight, body fat, and BMI data.One possible way to make weigh_log more useful and attractive is to explore additional variables that may be of interest to users. For example, relating variables such as exercise routine, dietary habits, and sleep patterns could provide more context for weight fluctuations and enable users to identify potential correlations or patterns.
+
+Another recommendation would be to automate the data collection process as much as possible, reducing the need for manual input and increasing the accuracy and completeness of the data. This could involve connecting wearable technology to equipment use to collect weight, body fat percentage, and height data. 
+
+In addition, it may be useful to provide more attractive and user-friendly visualizations and insights based on the individual data. For instance, displaying trends in weight changes and body fat over time, highlighting progress towards weight loss goals, or providing personalized recommendations based on the user's data could make the weight_log dataset more engaging and useful. 
+
+#### Heart rate: 
+Heatrate by itself is not the most attractive piece of information. It is useful for establishing a baseline for comparison and identy any abnormalities in an individual user. 
+
+However when use in combination with other info such as. age, gender, stress level and activity,heart rate can  be use to monitor the health status of an individual. Examining heart rate data over time can reveal patterns that may indicate changes in cardiovascular health or fitness level. For example, a gradual decrease in resting heart rate over time may be a sign of improved fitness. A user will might be interested to know if he/she achieve the desire level of fitness. 
+
+Factors such as stress, illness, or medication can all affect heart rate, so it is important to take these into account when interpreting the data. A user may be interested in receiving notifications if their heart rate shows abnormalities, along with explanations for the possible causes and suggestions for appropriate actions to take.
+
+Accurately recording heart rate data is a key challenge in making this information useful. While there are many wearable technology gadgets currently available, few can achieve the required level of accuracy, and some are too expensive to be incorporated into daily life. However, it is not impossible to create a gadget that can provide accurate heart rate data. Overcoming this challenge could pave the way for a range of new applications for heart rate data, from personalized health monitoring to performance tracking for athletes. 
+
+
+Diclaimer:  Due to the small sample size of all datasets, analyses generated from these datasets should be use with caution and subject to further validation. 
+
+Personally I like a gadget that is beautiful and functional. It would be even better if it is robust, weather proof, easy to use and need little to no maintenance (e.g.long battery life).  
+
+##### Thank you for taking time to read my case study. I would greatly appreciate any comments and feedback. Your insight will be valuable in helping me improving my work. 
