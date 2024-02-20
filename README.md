@@ -1,2 +1,0 @@
-# bellabeatproject
-:smirk:
